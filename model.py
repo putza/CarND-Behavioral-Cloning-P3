@@ -69,6 +69,19 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
+def get_device_list(self, tf_device_type=None):
+	"""List all available compute devices (GPU, CPU)
+
+	Args:
+		device_type (string, optional): Filter for computer devices.
+			Should be either "CPU" or "
+	"""
+	local_device_protos = device_lib.list_local_devices()
+	if tf_device_type:
+		return [x.name for x in local_device_protos if x.device_type == tf_device_type]
+	else:
+		return [x.name for x in local_device_protos]
+
 class DriveData(object):
     """Management class for training and validation data.
 
@@ -79,7 +92,7 @@ class DriveData(object):
       attr2 (:obj:`int`, optional): Description of `attr2`.
     """
 
-    def __init__(self, path='./data', batchsize=1024):
+    def __init__(self, path='./data', filename='augmented.csv', batchsize=1024):
         """Initializer of the DriveData object
 
         Args:
@@ -87,6 +100,7 @@ class DriveData(object):
         """
 
         self._batchsize = batchsize
+        self._filename = filename
 
         path = os.path.expanduser(path)
         self._path = path
@@ -110,9 +124,9 @@ class DriveData(object):
         path = self._path
 
         # Read data
-        df = pd.read_csv(os.path.join(path,'driving_log.csv'))
+        df = pd.read_csv(os.path.join(path,self._filename))
         df["im_sel"] = 'center'
-        df["im_manip"] = 'none'
+        df["im_flip"] = False
 
 
         train_samples, validation_samples = train_test_split(df, test_size=0.2)
@@ -143,8 +157,9 @@ class DriveData(object):
         print(" Generate batch data")
         print("-"*50)
 
+        im_output_flip = True
         path = self._path
-        batchsize = self._batchsize
+        batch_size = self._batchsize
         num_samples = len(samples)
         print(f" Batch size = {batch_size}, Sample Size = {num_samples}")
 
@@ -161,6 +176,7 @@ class DriveData(object):
                     im_col = batch_sample["im_sel"]
                     image = cv2.imread(os.path.join(path, batch_sample[im_col]))
                     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
                     angle = float(batch_sample['steering'])
                     images.append(image)
                     angles.append(angle)
@@ -181,13 +197,15 @@ class KerasCNN(object):
     attr2 (:obj:`int`, optional): Description of `attr2`.
   """
 
-  def __init__(self,cnn_type='basic', tf_device_type='CPU', input_shape=(160,320,3),model='nvidia'):
+  def __init__(self,cnn_type='basic', tf_device='/gpu:0', tf_device_type='CPU', input_shape=(160,320,3),model='nvidia'):
 
     logger.info('Initialising KerasCNN Class')
 
     self._input_shape = input_shape
     # Initialize Keras
-    tf_device = self.get_device_list(tf_device_type=tf_device_type)
+    if not tf_device:
+      logger.info('Detecting tf device')
+      tf_device = self.get_device_list(tf_device_type=tf_device_type)
     self.keras_initialize(tf_device=tf_device)
 
     if model == 'nvidia':
@@ -213,7 +231,7 @@ class KerasCNN(object):
 
     self._keras_device = tf_device
 
-    with tf.device('/gpu:0'):
+    with tf.device(tf_device):
       self._model = Sequential()
 
   def model_input(self, cropping=((40,25), (0,0)), resizing=True, new_size=(66,200)):
@@ -229,7 +247,7 @@ class KerasCNN(object):
 
 
     """
-    with tf.device('/gpu:0'):
+    with tf.device(self._keras_device):
       self._model.add(Cropping2D(cropping=cropping, input_shape=self._input_shape))
       if resizing:
         self._model.add(Lambda(lambda x: tf.image.resize_images(x, new_size))) # resize image
@@ -249,7 +267,7 @@ class KerasCNN(object):
       layers_dense (list, optional): Size of the dense layers. Constructs as many dense
         layers as specified in the list. Default: (100,50,10,1)
     """
-    with tf.device('/gpu:0'):
+    with tf.device(self._keras_device):
       # Convnet
       self._model.add(Conv2D(24,(5,5), strides=(2,2), padding='valid', kernel_initializer=init,activation=activation))
       self._model.add(Dropout(dropout[0]))
@@ -278,15 +296,15 @@ class KerasCNN(object):
                    val_data=None, val_size=None,
                    batch_size=1024, nb_epoch=100):
 
-    if not dataset:
-      logger.error('No dataset provided')
+    if not train_data:
+      logger.error('No training data provided')
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=0, verbose=0, mode='auto')
 
-    with tf.device('/gpu:0'):
+    with tf.device(self._keras_device):
       self._model.compile(loss='mse', optimizer='Adagrad')
 
-      model.fit_generator(train_data, steps_per_epoch=train_size,
+      history_object = self._model.fit_generator(train_data, steps_per_epoch=train_size,
             validation_data=val_data, validation_steps=val_size,
             nb_epoch=nb_epoch)
 
@@ -298,8 +316,8 @@ class KerasCNN(object):
     sp.save('history_obj_origin.npy', history_)
 
     plt.figure()
-    plt.plot(history_object.history['loss'])
-    plt.plot(history_object.history['val_loss'])
+    plt.plot(history_object.history['loss'],'-o')
+    plt.plot(history_object.history['val_loss'],'-o')
     plt.title('Mean Squared Error of model ...')
     plt.ylabel('mean squared error loss')
     plt.xlabel('epoch')
