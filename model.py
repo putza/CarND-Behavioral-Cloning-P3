@@ -125,8 +125,8 @@ class DriveData(object):
 
         # Read data
         df = pd.read_csv(os.path.join(path,self._filename))
-        df["im_sel"] = 'center'
-        df["im_flip"] = False
+        #df["im_sel"] = 'center'
+        #df["im_flip"] = False
 
 
         train_samples, validation_samples = train_test_split(df, test_size=0.2)
@@ -161,30 +161,41 @@ class DriveData(object):
         path = self._path
         batch_size = self._batchsize
         num_samples = len(samples)
+        num_samples_flipped = 0
         print(f" Batch size = {batch_size}, Sample Size = {num_samples}")
 
         while 1: # Loop forever so the generator never terminates
-            sklearn.utils.shuffle(samples) # Wow, this work for pandas DataFrames !!!
-            for offset in range(0, num_samples, batch_size):
-                batch_samples = samples[offset:offset+batch_size]
+          sklearn.utils.shuffle(samples) # Wow, this work for pandas DataFrames !!!
+          for offset in range(0, num_samples, batch_size):
+            batch_samples = samples[offset:offset+batch_size]
 
-                images = []
-                angles = []
+            images = []
+            angles = []
 
-                for index, batch_sample in batch_samples.iterrows():
-                    # name = './IMG/'+batch_sample[0].split('/')[-1] # Add if becessart
-                    im_col = batch_sample["im_sel"]
-                    image = cv2.imread(os.path.join(path, batch_sample[im_col]))
-                    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            for index, batch_sample in batch_samples.iterrows():
+              # name = './IMG/'+batch_sample[0].split('/')[-1] # Add if becessart
+              im_col = batch_sample["im_sel"]
+              image = cv2.imread(os.path.join(path, batch_sample[im_col].lstrip()))
+              image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-                    angle = float(batch_sample['steering'])
-                    images.append(image)
-                    angles.append(angle)
+              if batch_sample['im_flip']:
+                if im_output_flip:
+                  logger.info('Saving first flipped image')
+                  print('Saving first flipped image')
+                  plt.imsave('examples/im_flip_original.png',image)
+                image = sp.fliplr(image)
+                if im_output_flip:
+                  plt.imsave('examples/im_flip_flipped.png',image)
+                  im_output_flip = False
 
-                # trim image to only see section with road
-                X_train = sp.array(images)
-                y_train = sp.array(angles)
-                yield sklearn.utils.shuffle(X_train, y_train)
+              angle = float(batch_sample['steering'])
+              images.append(image)
+              angles.append(angle)
+
+            # trim image to only see section with road
+            X_train = sp.array(images)
+            y_train = sp.array(angles)
+            yield sklearn.utils.shuffle(X_train, y_train)
 
 
 class KerasCNN(object):
@@ -308,7 +319,7 @@ class KerasCNN(object):
             validation_data=val_data, validation_steps=val_size,
             nb_epoch=nb_epoch)
 
-
+    model.save('model.h5')
     print(history_object.history.keys())
     # Plot the training and validation loss for each epoch
     history_ = history_object.history
