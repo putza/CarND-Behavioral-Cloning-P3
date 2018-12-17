@@ -214,7 +214,7 @@ class KerasCNN(object):
     attr2 (:obj:`int`, optional): Description of `attr2`.
   """
 
-  def __init__(self, tf_device='/gpu:0', tf_device_type='CPU', input_shape=(160,320,3),model='nvidia'):
+  def __init__(self, tf_device='/gpu:0', tf_device_type='CPU', input_shape=(160,320,3),model='nvidia-full'):
 
     logger.info('Initialising KerasCNN Class')
 
@@ -225,10 +225,16 @@ class KerasCNN(object):
       tf_device = self.get_device_list(tf_device_type=tf_device_type)
     self.keras_initialize(tf_device=tf_device)
 
-    if model == 'nvidia':
+    if model == 'nvidia-resize':
       logger.info('KerasCNN.init: Use nvidia model')
       self._model_name = model
       self.model_input()
+      self.model_nvidia_original()
+
+    if model == 'nvidia-full':
+      logger.info('KerasCNN.init: Use nvidia model')
+      self._model_name = model
+      self.model_input(resizing=False)
       self.model_nvidia_original()
 
 
@@ -326,6 +332,7 @@ class KerasCNN(object):
             validation_data=val_data, validation_steps=val_size,
             nb_epoch=nb_epoch)
 
+    logger.info("... Training complete, saved as " + 'model_' + self._model_name + '.h5')
     self._model.save('model_' + self._model_name + '.h5')
     print(history_object.history.keys())
     # Plot the training and validation loss for each epoch
@@ -409,7 +416,7 @@ def main():
     # run training
     mycnn.run_training(train_data=gen_training, train_size=size_training,
                        val_data=gen_validation, val_size=size_validation,
-                       nb_epoch=25)
+                       nb_epoch=10)
 
 
 
