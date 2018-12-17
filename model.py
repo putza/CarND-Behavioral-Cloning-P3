@@ -335,6 +335,7 @@ class KerasCNN(object):
     plt.xlabel('epoch')
     plt.legend(['training set', 'validation set'], loc='upper right')
     plt.ylim([0, 0.1])
+    plt.savefig('training.png')
     plt.show()
 
 
@@ -362,12 +363,12 @@ def main():
                         help='Name of the CNN model (default nvidia)'
     )
     parser.add_argument('-d','--device', dest='tf_device',
-                        default='nvidia',
-                        help='Name of the CNN model (default nvidia)'
+                        default='/gpu:0',
+                        help='Name of the CNN model (default /gpu:0)'
     )
     parser.add_argument('-b','--batch_size', dest='batchsize',
                         default=1024,
-                        help='Vatchsize for tensorflow (default 1024)'
+                        help='Batchsize for tensorflow (default 1024)'
     )
 
     args = parser.parse_args()
@@ -375,7 +376,7 @@ def main():
     print("="*50)
     print("= Execution of main script")
     print("-"*50)
-    print(args.path)
+    print(args)
 
     # Show Tensorflow Devices:
     print("-"*50)
@@ -393,6 +394,7 @@ def main():
     size_training, size_validation = mydata.get_size()
     size_training = float(size_training / mydata._batchsize)
     size_validation = float(size_validation / mydata._batchsize)
+    gen_training, gen_validation = mydata.generator_train, mydata.generator_validation
     print("Training steps = {}, validation steps = {}".format(size_training,size_validation))
 
     # run training
