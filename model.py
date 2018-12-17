@@ -27,6 +27,7 @@ import argparse
 import os
 
 import scipy as sp
+import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import cv2
@@ -42,8 +43,11 @@ from tensorflow.python.client import device_lib
 #############################################
 # Keras Import
 #############################################
-# Keras model definition
+
 import keras
+# Import Keras backend
+from keras.layers.core import K
+# Keras model definition
 from keras.models import Sequential
 from keras.layers import Cropping2D
 from keras.layers import Flatten, Dense, Lambda, Activation
@@ -243,7 +247,7 @@ class KerasCNN(object):
 
     self._keras_device = tf_device
 
-    with tf.device(tf_device):
+    with K.tf.device(tf_device):
       self._model = Sequential()
 
   def model_input(self, cropping=((40,25), (0,0)), resizing=True, new_size=(66,200)):
@@ -259,10 +263,10 @@ class KerasCNN(object):
 
 
     """
-    with tf.device(self._keras_device):
+    with K.tf.device(self._keras_device):
       self._model.add(Cropping2D(cropping=cropping, input_shape=self._input_shape))
       if resizing:
-        self._model.add(Lambda(lambda x: tf.image.resize_images(x, new_size))) # resize image
+        self._model.add(Lambda(lambda x: K.tf.image.resize_images(x, new_size))) # resize image
       self._model.add(Lambda(lambda x: x/255.0 -0.5)) # normalization
 
   def model_nvidia_original(self, init = 'glorot_normal', activation = 'relu', dropout=(0.5,0.7),
@@ -279,7 +283,7 @@ class KerasCNN(object):
       layers_dense (list, optional): Size of the dense layers. Constructs as many dense
         layers as specified in the list. Default: (100,50,10,1)
     """
-    with tf.device(self._keras_device):
+    with K.tf.device(self._keras_device):
       # Convnet
       self._model.add(Conv2D(24,(5,5), strides=(2,2), padding='valid', kernel_initializer=init,activation=activation))
       self._model.add(Dropout(dropout[0]))
@@ -313,7 +317,7 @@ class KerasCNN(object):
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=0, mode='auto')
 
-    with tf.device(self._keras_device):
+    with K.tf.device(self._keras_device):
       self._model.compile(loss='mse', optimizer='Adagrad')
 
       history_object = self._model.fit_generator(train_data, steps_per_epoch=train_size,
@@ -344,6 +348,9 @@ class KerasCNN(object):
 
 
 def main():
+
+    # Set matplotlib to non-interactive mode
+    matplotlib.use('Agg')
 
     ########################################################################################
     # Parse the commandline
