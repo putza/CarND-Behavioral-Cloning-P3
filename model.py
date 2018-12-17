@@ -162,7 +162,7 @@ class DriveData(object):
         batch_size = self._batchsize
         num_samples = len(samples)
         num_samples_flipped = 0
-        print(f" Batch size = {batch_size}, Sample Size = {num_samples}")
+        print(" Batch size = {}, Sample Size = {}".format(batch_size,num_samples))
 
         while 1: # Loop forever so the generator never terminates
           sklearn.utils.shuffle(samples) # Wow, this work for pandas DataFrames !!!
@@ -208,7 +208,7 @@ class KerasCNN(object):
     attr2 (:obj:`int`, optional): Description of `attr2`.
   """
 
-  def __init__(self,cnn_type='basic', tf_device='/gpu:0', tf_device_type='CPU', input_shape=(160,320,3),model='nvidia'):
+  def __init__(self, tf_device='/gpu:0', tf_device_type='CPU', input_shape=(160,320,3),model='nvidia'):
 
     logger.info('Initialising KerasCNN Class')
 
@@ -221,6 +221,7 @@ class KerasCNN(object):
 
     if model == 'nvidia':
       logger.info('KerasCNN.init: Use nvidia model')
+      self._model_name = model
       self.model_input()
       self.model_nvidia_original()
 
@@ -319,7 +320,7 @@ class KerasCNN(object):
             validation_data=val_data, validation_steps=val_size,
             nb_epoch=nb_epoch)
 
-    self._model.save('model.h5')
+    self._model.save('model_' + self._model_name + '.h5')
     print(history_object.history.keys())
     # Plot the training and validation loss for each epoch
     history_ = history_object.history
@@ -352,15 +353,46 @@ def main():
                         default='./data',
                         help='file to the data directory (default: ./data)'
     )
+    parser.add_argument('-f','--filename', dest='fname',
+                        default='augmented.csv',
+                        help='name of data csv file (default augmented.csv)'
+    )
+    parser.add_argument('-m','--model', dest='model',
+                        default='nvidia',
+                        help='Name of the CNN model (default nvidia)'
+    )
+    parser.add_argument('-d','--device', dest='tf_device',
+                        default='nvidia',
+                        help='Name of the CNN model (default nvidia)'
+    )
+    parser.add_argument('-b','--batch_size', dest='batchsize',
+                        default=1024,
+                        help='Vatchsize for tensorflow (default 1024)'
+    )
 
     args = parser.parse_args()
     print(args.path)
 
-    # Load the data:
-    mydata = DriveData(path=args.path)
-    mycnn  = KerasCNN()
+    # Show Tensorflow Devices:
+    device_lib.list_local_devices()
 
-    # Create model class
+    # Load the data and create CNN class:
+    mydata = DriveData(path=args.path,filename=args.fname,batchsize=args.batchsize)
+    mycnn  = KerasCNN(tf_device=args.tf_device,model=args.model)
+
+    mycnn.get_device_list()
+
+    # Prepare training and validation data
+    size_training, size_validation = mydata.get_size()
+    size_training = float(size_training / mydata._batchsize)
+    size_validation = float(size_validation / mydata._batchsize)
+    print("Training steps = {}, validation steps = {}".format(size_training,size_validation))
+
+    # run training
+    mycnn.run_training(train_data=gen_training, train_size=size_training,
+                       val_data=gen_validation, val_size=size_validation,
+                       nb_epoch=25)
+
 
 
 
