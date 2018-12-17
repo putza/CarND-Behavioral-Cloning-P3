@@ -375,8 +375,8 @@ def main():
                         help='name of data csv file (default augmented.csv)'
     )
     parser.add_argument('-m','--model', dest='model',
-                        default='nvidia',
-                        help='Name of the CNN model (default nvidia)'
+                        default='nvidia-full',
+                        help='Name of the CNN model (default nvidia-full)'
     )
     parser.add_argument('-d','--device', dest='tf_device',
                         default='/gpu:0',
