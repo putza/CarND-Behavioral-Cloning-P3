@@ -129,8 +129,10 @@ class DriveData(object):
 
         # Read data
         df = pd.read_csv(os.path.join(path,self._filename))
-        #df["im_sel"] = 'center'
-        #df["im_flip"] = False
+        if 'im_sel' not in df.columns:
+          df["im_sel"] = 'center'
+        if 'im_flip' not in df.columns:
+          df["im_flip"] = False
 
 
         train_samples, validation_samples = train_test_split(df, test_size=0.2)
