@@ -371,10 +371,17 @@ def main():
     )
 
     args = parser.parse_args()
+
+    print("="*50)
+    print("= Execution of main script")
+    print("-"*50)
     print(args.path)
 
     # Show Tensorflow Devices:
-    device_lib.list_local_devices()
+    print("-"*50)
+    print("Tensorflow Devices:")
+    print(device_lib.list_local_devices())
+    print("-"*50)
 
     # Load the data and create CNN class:
     mydata = DriveData(path=args.path,filename=args.fname,batchsize=args.batchsize)
