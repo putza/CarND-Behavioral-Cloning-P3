@@ -13,6 +13,7 @@ from flask import Flask
 from io import BytesIO
 
 from keras.models import load_model
+from keras.utils.vis_utils import plot_model
 import h5py
 from keras import __version__ as keras_version
 
@@ -119,9 +120,13 @@ if __name__ == '__main__':
         print('You are using Keras version ', keras_version,
               ', but the model was built using ', model_version)
 
+    print("="*50)
     print("Loading Model")
     model = load_model(args.model)
+    model.summary()
+    plot_model(model, to_file='examples/model_drive.png', show_shapes=True, show_layer_names=True)
     print("Loading Model ...done")
+    print("="*50)
 
     if args.image_folder != '':
         print("Creating image folder at {}".format(args.image_folder))
