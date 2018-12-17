@@ -310,7 +310,7 @@ class KerasCNN(object):
     if not train_data:
       logger.error('No training data provided')
 
-    early_stopping = EarlyStopping(monitor='val_loss', patience=0, verbose=0, mode='auto')
+    early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=0, mode='auto')
 
     with tf.device(self._keras_device):
       self._model.compile(loss='mse', optimizer='Adagrad')
@@ -319,7 +319,7 @@ class KerasCNN(object):
             validation_data=val_data, validation_steps=val_size,
             nb_epoch=nb_epoch)
 
-    model.save('model.h5')
+    self._model.save('model.h5')
     print(history_object.history.keys())
     # Plot the training and validation loss for each epoch
     history_ = history_object.history
